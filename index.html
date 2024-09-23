@@ -119,7 +119,7 @@
 
             // Function to simulate a click on the assistant button
             function simulateButtonClick(action) {
-                var assistantButton = document.querySelector('.vapi-btn');
+                var assistantButton = document.querySelector('button[class*="vapi-btn"]');
                 if (assistantButton) {
                     assistantButton.click();
                     console.log("Assistant button clicked to " + action + " conversation");
