@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <title>Vapi AI Assistant</title>
+    <!-- Include the Vapi SDK using the correct URL -->
+    <script src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js"></script>
 </head>
 <body>
     <script>
+        // Your assistant code here
         var vapiInstance = null;
 
         function getQueryParam(param) {
@@ -22,120 +25,27 @@
 
         // Configure the button
         const buttonConfig = {
-            position: "bottom-right",
-            offset: "40px",
-            width: "50px",
-            height: "50px",
-            idle: {
-                color: `rgb(93, 254, 202)`,
-                type: "pill",
-                title: title,
-                subtitle: subtitle,
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone.svg`,
-            },
-            loading: {
-                color: `rgb(93, 124, 202)`,
-                type: "pill",
-                title: "Connecting...",
-                subtitle: "Please wait",
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
-            },
-            active: {
-                color: `rgb(255, 0, 0)`,
-                type: "pill",
-                title: "Call is in progress...",
-                subtitle: "End the call.",
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg`,
-            },
+            // ... your existing button configuration ...
         };
 
-        (function (d, t) {
-            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-            g.defer = true;
-            g.async = true;
-            s.parentNode.insertBefore(g, s);
+        // Initialize the assistant when the SDK is loaded
+        window.addEventListener('load', function() {
+            if (window.vapiEventListenersAdded) {
+                return;
+            }
+            window.vapiEventListenersAdded = true;
 
-            g.onload = function () {
-                if (window.vapiEventListenersAdded) {
-                    return;
-                }
-                window.vapiEventListenersAdded = true;
+            // Initialize vapiInstance using the web snippet approach
+            vapiInstance = window.vapiSDK.run({
+                apiKey: apiKey, // Mandatory
+                assistant: assistant, // Mandatory
+                config: buttonConfig, // Optional
+            });
 
-                // Initialize vapiInstance using the web snippet approach
-                vapiInstance = window.vapiSDK.run({
-                    apiKey: apiKey, // Mandatory
-                    assistant: assistant, // Mandatory
-                    config: buttonConfig, // Optional
-                });
+            console.log("Assistant: vapiInstance created:", vapiInstance);
 
-                console.log("Assistant: vapiInstance created:", vapiInstance);
-
-                // Add event listeners to vapiInstance
-                vapiInstance.on('message', (message) => {
-                    console.log("Assistant: Received message:", message);
-
-                    if (message.type === 'transcript' && message.transcriptType === 'final') {
-                        let transcription = message.transcript;
-                        let role = message.role; // 'user' or 'assistant'
-
-                        console.log("Assistant: Sending transcription:", transcription, "Role:", role);
-
-                        // Send the transcription and role to the parent window
-                        window.parent.postMessage({
-                            type: 'transcription',
-                            data: {
-                                transcription: transcription,
-                                role: role
-                            }
-                        }, parentOrigin);
-                    }
-                });
-
-                vapiInstance.on('error', (e) => {
-                    console.error("Assistant: Error:", e);
-                    window.parent.postMessage({
-                        type: 'error',
-                        data: e.message || e
-                    }, parentOrigin);
-                });
-
-                // Event listener for messages from the parent window
-                window.addEventListener('message', function(event) {
-                    if (event.origin !== parentOrigin) {
-                        console.warn("Received message from unknown origin:", event.origin);
-                        return;
-                    }
-
-                    var data = event.data;
-                    if (typeof data === 'object' && data !== null) {
-                        if (data.type === 'start_conversation') {
-                            console.log("Assistant: Starting conversation");
-                            // Simulate a click on the assistant button to start the call
-                            simulateButtonClick('start');
-                        } else if (data.type === 'stop_conversation') {
-                            console.log("Assistant: Stopping conversation");
-                            // Simulate a click on the assistant button to stop the call
-                            simulateButtonClick('stop');
-                        }
-                    }
-                });
-
-                // Function to simulate a click on the assistant button
-                function simulateButtonClick(action) {
-                    var assistantButton = document.querySelector('.vapi-widget-button');
-                    if (assistantButton) {
-                        assistantButton.click();
-                        console.log("Assistant button clicked to " + action + " conversation");
-                    } else {
-                        console.warn("Assistant button not found, retrying in 500ms...");
-                        setTimeout(function() {
-                            simulateButtonClick(action);
-                        }, 500);
-                    }
-                }
-            };
-        })(document, "script");
+            // ... rest of your code (event listeners, message handling, etc.) ...
+        });
     </script>
 </body>
 </html>
