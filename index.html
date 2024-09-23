@@ -98,6 +98,12 @@
 
             // Event listener for messages from the parent window
             window.addEventListener('message', function(event) {
+                // Ignore messages from the assistant's own origin
+                if (event.origin === window.location.origin) {
+                    // Optionally, you can log or handle these messages if needed
+                    return;
+                }
+
                 if (event.origin !== parentOrigin) {
                     console.warn("Received message from unknown origin:", event.origin);
                     return;
@@ -107,11 +113,9 @@
                 if (typeof data === 'object' && data !== null) {
                     if (data.type === 'start_conversation') {
                         console.log("Assistant: Starting conversation");
-                        // Simulate a click on the assistant button to start the call
                         simulateButtonClick('start');
                     } else if (data.type === 'stop_conversation') {
                         console.log("Assistant: Stopping conversation");
-                        // Simulate a click on the assistant button to stop the call
                         simulateButtonClick('stop');
                     }
                 }
