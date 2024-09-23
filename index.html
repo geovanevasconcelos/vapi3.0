@@ -20,7 +20,9 @@
         const assistant = getQueryParam('assistant') || '<assistant_id>';
         const title = getQueryParam('title') || 'Have a quick question?';
         const subtitle = getQueryParam('subtitle') || 'Talk with our AI assistant';
-        const parentOrigin = getQueryParam('parentOrigin') || '*';
+        const parentOrigin = getQueryParam('parentOrigin') || window.location.origin;
+
+        console.log("Assistant: parentOrigin is", parentOrigin);
 
         // Configure the button
         const buttonConfig = {
@@ -58,159 +60,122 @@
             }
             window.vapiEventListenersAdded = true;
 
-            // Initialize vapiInstance using the web snippet approach
-            vapiInstance = window.vapiSDK.run({
-                apiKey: apiKey, // Mandatory
-                assistant: assistant, // Mandatory
-                config: buttonConfig, // Optional
-            });
+            try {
+                // Initialize vapiInstance using the web snippet approach
+                vapiInstance = window.vapiSDK.run({
+                    apiKey: apiKey, // Mandatory
+                    assistant: assistant, // Mandatory
+                    config: buttonConfig, // Optional
+                });
 
-            console.log("Assistant: vapiInstance created:", vapiInstance);
+                console.log("Assistant: vapiInstance created:", vapiInstance);
 
-            // MutationObserver to watch for class changes on the assistant button
-            observeButtonClassChanges();
+                // Event listeners for status updates
+                vapiInstance.on('call-start', () => {
+                    console.log('Assistant: Call has started');
+                    sendStatusToParent('call-started');
+                });
 
-            // Add the transcription message listener
-            vapiInstance.on('message', (message) => {
-                console.log("Assistant: Received message:", message);
+                vapiInstance.on('call-end', () => {
+                    console.log('Assistant: Call has ended');
+                    sendStatusToParent('call-ended');
+                });
 
-                if (message.type === 'transcript' && message.transcriptType === 'final') {
-                    let transcription = message.transcript;
-                    let role = message.role; // 'user' or 'assistant'
+                vapiInstance.on('speech-start', () => {
+                    console.log('Assistant: Assistant has started speaking');
+                    sendStatusToParent('assistant-talking');
+                });
 
-                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+                vapiInstance.on('speech-end', () => {
+                    console.log('Assistant: Assistant has finished speaking');
+                    sendStatusToParent('assistant-waiting');
+                });
 
-                    // Send the transcription and role to the parent window
+                vapiInstance.on('error', (e) => {
+                    console.error("Assistant: Error:", e);
                     window.parent.postMessage({
-                        type: 'transcription',
-                        data: {
-                            transcription: transcription,
-                            role: role
+                        type: 'error',
+                        data: e.message || e
+                    }, parentOrigin);
+                });
+
+                // Add the transcription message listener
+                vapiInstance.on('message', (message) => {
+                    console.log("Assistant: Received message:", message);
+
+                    if (message.type === 'transcript' && message.transcriptType === 'final') {
+                        let transcription = message.transcript;
+                        let role = message.role; // 'user' or 'assistant'
+
+                        console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+
+                        // Send the transcription and role to the parent window
+                        window.parent.postMessage({
+                            type: 'transcription',
+                            data: {
+                                transcription: transcription,
+                                role: role
+                            }
+                        }, parentOrigin);
+                    } else {
+                        console.log("Assistant: Message type is not 'transcript' or not 'final'");
+                    }
+                });
+
+                // Event listener for messages from the parent window
+                window.addEventListener('message', function(event) {
+                    // Ignore messages from the assistant's own origin
+                    if (event.origin === window.location.origin) {
+                        return;
+                    }
+
+                    if (event.origin !== parentOrigin) {
+                        console.warn("Assistant: Received message from unknown origin:", event.origin);
+                        return;
+                    }
+
+                    var data = event.data;
+                    if (typeof data === 'object' && data !== null) {
+                        if (data.type === 'start_conversation') {
+                            console.log("Assistant: Starting conversation");
+                            simulateButtonClick('start');
+                        } else if (data.type === 'stop_conversation') {
+                            console.log("Assistant: Stopping conversation");
+                            simulateButtonClick('stop');
                         }
+                    }
+                });
+
+                // Function to send status updates to the parent window
+                function sendStatusToParent(status) {
+                    console.log("Assistant: Sending status to parent:", status);
+                    window.parent.postMessage({
+                        type: 'status',
+                        data: status
                     }, parentOrigin);
                 }
-            });
 
-            // Event listener for messages from the parent window
-            window.addEventListener('message', function(event) {
-                // Ignore messages from the assistant's own origin
-                if (event.origin === window.location.origin) {
-                    return;
-                }
-
-                if (event.origin !== parentOrigin) {
-                    console.warn("Received message from unknown origin:", event.origin);
-                    return;
-                }
-
-                var data = event.data;
-                if (typeof data === 'object' && data !== null) {
-                    if (data.type === 'start_conversation') {
-                        console.log("Assistant: Starting conversation");
-                        simulateButtonClick('start');
-                    } else if (data.type === 'stop_conversation') {
-                        console.log("Assistant: Stopping conversation");
-                        simulateButtonClick('stop');
+                // Function to simulate a click on the assistant button
+                function simulateButtonClick(action) {
+                    var assistantButton = document.querySelector('button[class*="vapi-btn"]');
+                    if (assistantButton) {
+                        assistantButton.click();
+                        console.log("Assistant: Button clicked to " + action + " conversation");
+                    } else {
+                        console.warn("Assistant: Button not found, retrying in 500ms...");
+                        setTimeout(function() {
+                            simulateButtonClick(action);
+                        }, 500);
                     }
                 }
-            });
 
-            // Function to send status updates to the parent window
-            function sendStatusToParent(status) {
+            } catch (error) {
+                console.error("Assistant: Error during initialization:", error);
                 window.parent.postMessage({
-                    type: 'status',
-                    data: status
+                    type: 'error',
+                    data: error.message || error
                 }, parentOrigin);
             }
-
-            // Function to simulate a click on the assistant button
-            function simulateButtonClick(action) {
-                var assistantButton = document.querySelector('button[class*="vapi-btn"]');
-                if (assistantButton) {
-                    assistantButton.click();
-                    console.log("Assistant button clicked to " + action + " conversation");
-                } else {
-                    console.warn("Assistant button not found, retrying in 500ms...");
-                    setTimeout(function() {
-                        simulateButtonClick(action);
-                    }, 500);
-                }
-            }
-
-            // Function to observe class changes on the assistant button
-            function observeButtonClassChanges() {
-                var assistantButton = document.querySelector('button[class*="vapi-btn"]');
-                if (!assistantButton) {
-                    console.warn("Assistant button not found, retrying in 500ms...");
-                    setTimeout(observeButtonClassChanges, 500);
-                    return;
-                }
-
-                // Map CSS classes to statuses
-                var classToStatusMap = {
-                    'vapi-btn-is-idle': 'idle',
-                    'vapi-btn-is-loading': 'call-loading',
-                    'vapi-btn-is-active': 'call-started',
-                    'vapi-btn-is-speaking': 'assistant-talking'
-                    // 'assistant-waiting' can be inferred when 'vapi-btn-is-active' is present and 'vapi-btn-is-speaking' is not
-                };
-
-                var lastStatus = null;
-
-                var observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(mutation) {
-                        if (mutation.attributeName === 'class') {
-                            var classList = assistantButton.classList;
-                            var status = null;
-
-                            for (var className in classToStatusMap) {
-                                if (classList.contains(className)) {
-                                    status = classToStatusMap[className];
-                                    break;
-                                }
-                            }
-
-                            // If 'vapi-btn-is-active' is present but no other status, infer 'assistant-waiting'
-                            if (!status && classList.contains('vapi-btn-is-active')) {
-                                status = 'assistant-waiting';
-                            }
-
-                            if (status && status !== lastStatus) {
-                                console.log("Assistant: Status changed to", status);
-                                sendStatusToParent(status);
-                                lastStatus = status;
-                            }
-                        }
-                    });
-                });
-
-                observer.observe(assistantButton, {
-                    attributes: true,
-                    attributeFilter: ['class']
-                });
-
-                // Initial status check
-                var initialClassList = assistantButton.classList;
-                var initialStatus = null;
-
-                for (var className in classToStatusMap) {
-                    if (initialClassList.contains(className)) {
-                        initialStatus = classToStatusMap[className];
-                        break;
-                    }
-                }
-
-                if (!initialStatus && initialClassList.contains('vapi-btn-is-active')) {
-                    initialStatus = 'assistant-waiting';
-                }
-
-                if (initialStatus) {
-                    console.log("Assistant: Initial status is", initialStatus);
-                    sendStatusToParent(initialStatus);
-                    lastStatus = initialStatus;
-                }
-            }
-
         });
     </script>
 </body>
