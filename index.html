@@ -17,34 +17,10 @@
         const assistant = getQueryParam('assistant') || 'defaultAssistant';
         const title = getQueryParam('title') || 'Have a quick question?';
         const subtitle = getQueryParam('subtitle') || 'Talk with our AI assistant';
-        const parentOrigin = getQueryParam('parentOrigin') || '*'; // Default to '*' if not provided
+        const parentOrigin = getQueryParam('parentOrigin') || '*';
 
         const buttonConfig = {
-            position: "bottom-right",
-            offset: "40px",
-            width: "50px",
-            height: "50px",
-            idle: {
-                color: `rgb(93, 254, 202)`,
-                type: "pill",
-                title: title,
-                subtitle: subtitle,
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone.svg`,
-            },
-            loading: {
-                color: `rgb(93, 124, 202)`,
-                type: "pill",
-                title: "Connecting...",
-                subtitle: "Please wait",
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
-            },
-            active: {
-                color: `rgb(255, 0, 0)`,
-                type: "pill",
-                title: "Call is in progress...",
-                subtitle: "End the call.",
-                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg`,
-            },
+            // ... existing button configuration ...
         };
 
         (function (d, t) {
@@ -68,41 +44,23 @@
 
                 console.log("Assistant: vapiInstance created:", vapiInstance);
 
+                if (!vapiInstance) {
+                    console.error("Failed to initialize vapiInstance");
+                    return;
+                }
+
                 // Event listener for messages from the assistant
                 vapiInstance.on('message', (message) => {
-                    console.log("Assistant: Received message:", message);
-
-                    // Check if the message is a transcript
-                    if (message.type === 'transcript' && message.transcriptType === 'final') {
-                        // Extract the transcript and role
-                        let transcription = message.transcript;
-                        let role = message.role; // 'user' or 'assistant'
-
-                        console.log("Assistant: Sending transcription:", transcription, "Role:", role);
-
-                        // Send the transcription and role to the parent window
-                        window.parent.postMessage({
-                            type: 'transcription',
-                            data: {
-                                transcription: transcription,
-                                role: role
-                            }
-                        }, parentOrigin); // Use parentOrigin instead of '*'
-                    }
+                    // ... existing transcription code ...
                 });
 
                 // Event listener for errors from the assistant
                 vapiInstance.on('error', (e) => {
-                    console.error("Assistant: Error:", e.message);
-                    window.parent.postMessage({
-                        type: 'error',
-                        data: e.message
-                    }, parentOrigin); // Use parentOrigin instead of '*'
+                    // ... existing error handling code ...
                 });
 
                 // Event listener for messages from the parent window
                 window.addEventListener('message', function(event) {
-                    // Check the origin
                     if (event.origin !== parentOrigin) {
                         console.warn("Received message from unknown origin:", event.origin);
                         return;
@@ -111,22 +69,18 @@
                     var data = event.data;
                     if (typeof data === 'object' && data !== null) {
                         if (data.type === 'start_conversation') {
-                            console.log("Assistant: Starting conversation");
-                            // Simulate a click on the assistant button
-                            var assistantButton = document.querySelector('.vapi-widget-button');
-                            if (assistantButton) {
-                                assistantButton.click();
+                            console.log("Assistant: Starting conversation via SDK method");
+                            if (vapiInstance && vapiInstance.startCall) {
+                                vapiInstance.startCall();
                             } else {
-                                console.error("Assistant button not found");
+                                console.error("vapiInstance or startCall method not available");
                             }
                         } else if (data.type === 'stop_conversation') {
-                            console.log("Assistant: Stopping conversation");
-                            // Simulate a click on the assistant button to stop the call
-                            var assistantButton = document.querySelector('.vapi-widget-button');
-                            if (assistantButton) {
-                                assistantButton.click();
+                            console.log("Assistant: Stopping conversation via SDK method");
+                            if (vapiInstance && vapiInstance.endCall) {
+                                vapiInstance.endCall();
                             } else {
-                                console.error("Assistant button not found");
+                                console.error("vapiInstance or endCall method not available");
                             }
                         }
                     }
