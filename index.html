@@ -67,25 +67,15 @@
 
             console.log("Assistant: vapiInstance created:", vapiInstance);
 
-            // Add event listeners to vapiInstance
-            vapiInstance.on('message', (message) => {
-                console.log("Assistant: Received message:", message);
+            // Add event listeners to vapiInstance for call status updates
+            vapiInstance.on('call-start', () => {
+                console.log('Assistant: Call has started');
+                sendCallStatusToParent(true); // Call is active
+            });
 
-                if (message.type === 'transcript' && message.transcriptType === 'final') {
-                    let transcription = message.transcript;
-                    let role = message.role; // 'user' or 'assistant'
-
-                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
-
-                    // Send the transcription and role to the parent window
-                    window.parent.postMessage({
-                        type: 'transcription',
-                        data: {
-                            transcription: transcription,
-                            role: role
-                        }
-                    }, parentOrigin);
-                }
+            vapiInstance.on('call-end', () => {
+                console.log('Assistant: Call has ended');
+                sendCallStatusToParent(false); // Call is inactive
             });
 
             vapiInstance.on('error', (e) => {
@@ -100,7 +90,6 @@
             window.addEventListener('message', function(event) {
                 // Ignore messages from the assistant's own origin
                 if (event.origin === window.location.origin) {
-                    // Optionally, you can log or handle these messages if needed
                     return;
                 }
 
@@ -121,6 +110,14 @@
                 }
             });
 
+            // Function to send call status updates to the parent window
+            function sendCallStatusToParent(isCallActive) {
+                window.parent.postMessage({
+                    type: 'call_status',
+                    data: isCallActive
+                }, parentOrigin);
+            }
+
             // Function to simulate a click on the assistant button
             function simulateButtonClick(action) {
                 var assistantButton = document.querySelector('button[class*="vapi-btn"]');
@@ -134,6 +131,27 @@
                     }, 500);
                 }
             }
+
+            // Existing message listener
+            vapiInstance.on('message', (message) => {
+                console.log("Assistant: Received message:", message);
+
+                if (message.type === 'transcript' && message.transcriptType === 'final') {
+                    let transcription = message.transcript;
+                    let role = message.role; // 'user' or 'assistant'
+
+                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+
+                    // Send the transcription and role to the parent window
+                    window.parent.postMessage({
+                        type: 'transcription',
+                        data: {
+                            transcription: transcription,
+                            role: role
+                        }
+                    }, parentOrigin);
+                }
+            });
         });
     </script>
 </body>
