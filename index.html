@@ -23,6 +23,19 @@
             // ... existing button configuration ...
         };
 
+        function clickAssistantButton(action) {
+            var assistantButton = document.querySelector('.vapi-widget-button');
+            if (assistantButton) {
+                assistantButton.click();
+                console.log("Assistant button clicked to " + action + " conversation");
+            } else {
+                console.warn("Assistant button not found, retrying in 500ms...");
+                setTimeout(function() {
+                    clickAssistantButton(action);
+                }, 500);
+            }
+        }
+
         (function (d, t) {
             var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
             g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
@@ -44,19 +57,17 @@
 
                 console.log("Assistant: vapiInstance created:", vapiInstance);
 
-                if (!vapiInstance) {
-                    console.error("Failed to initialize vapiInstance");
-                    return;
-                }
+                // Log available methods
+                console.log("Assistant: vapiInstance methods:", Object.keys(vapiInstance));
 
                 // Event listener for messages from the assistant
                 vapiInstance.on('message', (message) => {
-                    // ... existing transcription code ...
+                    // ... existing transcription handling ...
                 });
 
                 // Event listener for errors from the assistant
                 vapiInstance.on('error', (e) => {
-                    // ... existing error handling code ...
+                    // ... existing error handling ...
                 });
 
                 // Event listener for messages from the parent window
@@ -69,19 +80,11 @@
                     var data = event.data;
                     if (typeof data === 'object' && data !== null) {
                         if (data.type === 'start_conversation') {
-                            console.log("Assistant: Starting conversation via SDK method");
-                            if (vapiInstance && vapiInstance.startCall) {
-                                vapiInstance.startCall();
-                            } else {
-                                console.error("vapiInstance or startCall method not available");
-                            }
+                            console.log("Assistant: Starting conversation");
+                            clickAssistantButton('start');
                         } else if (data.type === 'stop_conversation') {
-                            console.log("Assistant: Stopping conversation via SDK method");
-                            if (vapiInstance && vapiInstance.endCall) {
-                                vapiInstance.endCall();
-                            } else {
-                                console.error("vapiInstance or endCall method not available");
-                            }
+                            console.log("Assistant: Stopping conversation");
+                            clickAssistantButton('stop');
                         }
                     }
                 });
