@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <title>Vapi AI Assistant</title>
-    <!-- Include the Vapi SDK using the correct URL -->
+    <!-- Include the Vapi SDK -->
     <script src="https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js"></script>
 </head>
 <body>
     <script>
-        // Your assistant code here
         var vapiInstance = null;
 
         function getQueryParam(param) {
@@ -25,7 +24,31 @@
 
         // Configure the button
         const buttonConfig = {
-            // ... your existing button configuration ...
+            position: "bottom-right",
+            offset: "40px",
+            width: "50px",
+            height: "50px",
+            idle: {
+                color: `rgb(93, 254, 202)`,
+                type: "pill",
+                title: title,
+                subtitle: subtitle,
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone.svg`,
+            },
+            loading: {
+                color: `rgb(93, 124, 202)`,
+                type: "pill",
+                title: "Connecting...",
+                subtitle: "Please wait",
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
+            },
+            active: {
+                color: `rgb(255, 0, 0)`,
+                type: "pill",
+                title: "Call is in progress...",
+                subtitle: "End the call.",
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg`,
+            },
         };
 
         // Initialize the assistant when the SDK is loaded
@@ -44,7 +67,69 @@
 
             console.log("Assistant: vapiInstance created:", vapiInstance);
 
-            // ... rest of your code (event listeners, message handling, etc.) ...
+            // Add event listeners to vapiInstance
+            vapiInstance.on('message', (message) => {
+                console.log("Assistant: Received message:", message);
+
+                if (message.type === 'transcript' && message.transcriptType === 'final') {
+                    let transcription = message.transcript;
+                    let role = message.role; // 'user' or 'assistant'
+
+                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+
+                    // Send the transcription and role to the parent window
+                    window.parent.postMessage({
+                        type: 'transcription',
+                        data: {
+                            transcription: transcription,
+                            role: role
+                        }
+                    }, parentOrigin);
+                }
+            });
+
+            vapiInstance.on('error', (e) => {
+                console.error("Assistant: Error:", e);
+                window.parent.postMessage({
+                    type: 'error',
+                    data: e.message || e
+                }, parentOrigin);
+            });
+
+            // Event listener for messages from the parent window
+            window.addEventListener('message', function(event) {
+                if (event.origin !== parentOrigin) {
+                    console.warn("Received message from unknown origin:", event.origin);
+                    return;
+                }
+
+                var data = event.data;
+                if (typeof data === 'object' && data !== null) {
+                    if (data.type === 'start_conversation') {
+                        console.log("Assistant: Starting conversation");
+                        // Simulate a click on the assistant button to start the call
+                        simulateButtonClick('start');
+                    } else if (data.type === 'stop_conversation') {
+                        console.log("Assistant: Stopping conversation");
+                        // Simulate a click on the assistant button to stop the call
+                        simulateButtonClick('stop');
+                    }
+                }
+            });
+
+            // Function to simulate a click on the assistant button
+            function simulateButtonClick(action) {
+                var assistantButton = document.querySelector('.vapi-btn');
+                if (assistantButton) {
+                    assistantButton.click();
+                    console.log("Assistant button clicked to " + action + " conversation");
+                } else {
+                    console.warn("Assistant button not found, retrying in 500ms...");
+                    setTimeout(function() {
+                        simulateButtonClick(action);
+                    }, 500);
+                }
+            }
         });
     </script>
 </body>
