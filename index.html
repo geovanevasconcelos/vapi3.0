@@ -67,15 +67,42 @@
 
             console.log("Assistant: vapiInstance created:", vapiInstance);
 
-            // Add event listeners to vapiInstance for call status updates
-            vapiInstance.on('call-start', () => {
-                console.log('Assistant: Call has started');
-                sendCallStatusToParent(true); // Call is active
+            // Add event listeners to vapiInstance for status updates
+
+            // Detect when the call is loading (connecting)
+            vapiInstance.on('call-attempt', () => {
+                console.log('Assistant: Call is attempting to connect');
+                sendStatusToParent('call-loading');
             });
 
+            // Detect when the call has started
+            vapiInstance.on('call-start', () => {
+                console.log('Assistant: Call has started');
+                sendStatusToParent('call-started');
+            });
+
+            // Detect when the call has ended
             vapiInstance.on('call-end', () => {
                 console.log('Assistant: Call has ended');
-                sendCallStatusToParent(false); // Call is inactive
+                sendStatusToParent('call-ended');
+            });
+
+            // Detect when the assistant starts speaking
+            vapiInstance.on('assistant-speech-start', () => {
+                console.log('Assistant: Assistant has started speaking');
+                sendStatusToParent('assistant-talking');
+            });
+
+            // Detect when the assistant stops speaking
+            vapiInstance.on('assistant-speech-end', () => {
+                console.log('Assistant: Assistant has stopped speaking');
+                sendStatusToParent('assistant-waiting');
+            });
+
+            // Detect when the assistant is waiting (listening)
+            vapiInstance.on('listening-start', () => {
+                console.log('Assistant: Assistant is listening');
+                sendStatusToParent('assistant-waiting');
             });
 
             vapiInstance.on('error', (e) => {
@@ -110,11 +137,11 @@
                 }
             });
 
-            // Function to send call status updates to the parent window
-            function sendCallStatusToParent(isCallActive) {
+            // Function to send status updates to the parent window
+            function sendStatusToParent(status) {
                 window.parent.postMessage({
-                    type: 'call_status',
-                    data: isCallActive
+                    type: 'status',
+                    data: status
                 }, parentOrigin);
             }
 
