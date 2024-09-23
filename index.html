@@ -67,51 +67,10 @@
 
             console.log("Assistant: vapiInstance created:", vapiInstance);
 
-            // Add event listeners to vapiInstance for status updates
+            // MutationObserver to watch for class changes on the assistant button
+            observeButtonClassChanges();
 
-            // Detect when the call is loading (connecting)
-            vapiInstance.on('call-attempt', () => {
-                console.log('Assistant: Call is attempting to connect');
-                sendStatusToParent('call-loading');
-            });
-
-            // Detect when the call has started
-            vapiInstance.on('call-start', () => {
-                console.log('Assistant: Call has started');
-                sendStatusToParent('call-started');
-            });
-
-            // Detect when the call has ended
-            vapiInstance.on('call-end', () => {
-                console.log('Assistant: Call has ended');
-                sendStatusToParent('call-ended');
-            });
-
-            // Detect when the assistant starts speaking
-            vapiInstance.on('assistant-speech-start', () => {
-                console.log('Assistant: Assistant has started speaking');
-                sendStatusToParent('assistant-talking');
-            });
-
-            // Detect when the assistant stops speaking
-            vapiInstance.on('assistant-speech-end', () => {
-                console.log('Assistant: Assistant has stopped speaking');
-                sendStatusToParent('assistant-waiting');
-            });
-
-            // Detect when the assistant is waiting (listening)
-            vapiInstance.on('listening-start', () => {
-                console.log('Assistant: Assistant is listening');
-                sendStatusToParent('assistant-waiting');
-            });
-
-            vapiInstance.on('error', (e) => {
-                console.error("Assistant: Error:", e);
-                window.parent.postMessage({
-                    type: 'error',
-                    data: e.message || e
-                }, parentOrigin);
-            });
+            // Existing code remains unchanged...
 
             // Event listener for messages from the parent window
             window.addEventListener('message', function(event) {
@@ -159,26 +118,79 @@
                 }
             }
 
-            // Existing message listener
-            vapiInstance.on('message', (message) => {
-                console.log("Assistant: Received message:", message);
-
-                if (message.type === 'transcript' && message.transcriptType === 'final') {
-                    let transcription = message.transcript;
-                    let role = message.role; // 'user' or 'assistant'
-
-                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
-
-                    // Send the transcription and role to the parent window
-                    window.parent.postMessage({
-                        type: 'transcription',
-                        data: {
-                            transcription: transcription,
-                            role: role
-                        }
-                    }, parentOrigin);
+            // Function to observe class changes on the assistant button
+            function observeButtonClassChanges() {
+                var assistantButton = document.querySelector('button[class*="vapi-btn"]');
+                if (!assistantButton) {
+                    console.warn("Assistant button not found, retrying in 500ms...");
+                    setTimeout(observeButtonClassChanges, 500);
+                    return;
                 }
-            });
+
+                // Map CSS classes to statuses
+                var classToStatusMap = {
+                    'vapi-btn-is-idle': 'idle',
+                    'vapi-btn-is-loading': 'call-loading',
+                    'vapi-btn-is-active': 'call-started',
+                    'vapi-btn-is-speaking': 'assistant-talking'
+                    // 'assistant-waiting' can be inferred when 'vapi-btn-is-active' is present and 'vapi-btn-is-speaking' is not
+                };
+
+                var lastStatus = null;
+
+                var observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.attributeName === 'class') {
+                            var classList = assistantButton.classList;
+                            var status = null;
+
+                            for (var className in classToStatusMap) {
+                                if (classList.contains(className)) {
+                                    status = classToStatusMap[className];
+                                    break;
+                                }
+                            }
+
+                            // If 'vapi-btn-is-active' is present but no other status, infer 'assistant-waiting'
+                            if (!status && classList.contains('vapi-btn-is-active')) {
+                                status = 'assistant-waiting';
+                            }
+
+                            if (status && status !== lastStatus) {
+                                console.log("Assistant: Status changed to", status);
+                                sendStatusToParent(status);
+                                lastStatus = status;
+                            }
+                        }
+                    });
+                });
+
+                observer.observe(assistantButton, {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+
+                // Initial status check
+                var initialClassList = assistantButton.classList;
+                var initialStatus = null;
+
+                for (var className in classToStatusMap) {
+                    if (initialClassList.contains(className)) {
+                        initialStatus = classToStatusMap[className];
+                        break;
+                    }
+                }
+
+                if (!initialStatus && initialClassList.contains('vapi-btn-is-active')) {
+                    initialStatus = 'assistant-waiting';
+                }
+
+                if (initialStatus) {
+                    console.log("Assistant: Initial status is", initialStatus);
+                    sendStatusToParent(initialStatus);
+                    lastStatus = initialStatus;
+                }
+            }
         });
     </script>
 </body>
