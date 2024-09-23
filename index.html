@@ -70,7 +70,26 @@
             // MutationObserver to watch for class changes on the assistant button
             observeButtonClassChanges();
 
-            // Existing code remains unchanged...
+            // Add the transcription message listener
+            vapiInstance.on('message', (message) => {
+                console.log("Assistant: Received message:", message);
+
+                if (message.type === 'transcript' && message.transcriptType === 'final') {
+                    let transcription = message.transcript;
+                    let role = message.role; // 'user' or 'assistant'
+
+                    console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+
+                    // Send the transcription and role to the parent window
+                    window.parent.postMessage({
+                        type: 'transcription',
+                        data: {
+                            transcription: transcription,
+                            role: role
+                        }
+                    }, parentOrigin);
+                }
+            });
 
             // Event listener for messages from the parent window
             window.addEventListener('message', function(event) {
@@ -191,6 +210,7 @@
                     lastStatus = initialStatus;
                 }
             }
+
         });
     </script>
 </body>
