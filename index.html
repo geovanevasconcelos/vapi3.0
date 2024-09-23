@@ -3,93 +3,83 @@
 <head>
     <meta charset="UTF-8">
     <title>Vapi AI Assistant</title>
+    <!-- Include the Vapi SDK -->
+    <script src="https://cdn.vapi.ai/web/vapi.min.js"></script>
 </head>
 <body>
     <script>
-        var vapiInstance = null;
-
         function getQueryParam(param) {
             let urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
 
+        // Retrieve parameters from the query string
         const apiKey = getQueryParam('apiKey') || 'defaultApi';
         const assistant = getQueryParam('assistant') || 'defaultAssistant';
-        const title = getQueryParam('title') || 'Have a quick question?';
-        const subtitle = getQueryParam('subtitle') || 'Talk with our AI assistant';
         const parentOrigin = getQueryParam('parentOrigin') || '*';
 
-        const buttonConfig = {
-            // ... existing button configuration ...
-        };
+        // Set the apiKey for the Vapi SDK
+        vapi.apiKey = apiKey;
 
-        function clickAssistantButton(action) {
-            var assistantButton = document.querySelector('.vapi-widget-button');
-            if (assistantButton) {
-                assistantButton.click();
-                console.log("Assistant button clicked to " + action + " conversation");
-            } else {
-                console.warn("Assistant button not found, retrying in 500ms...");
-                setTimeout(function() {
-                    clickAssistantButton(action);
-                }, 500);
+        // Event listener for messages from the parent window
+        window.addEventListener('message', function(event) {
+            if (event.origin !== parentOrigin) {
+                console.warn("Received message from unknown origin:", event.origin);
+                return;
             }
-        }
 
-        (function (d, t) {
-            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
-            g.defer = true;
-            g.async = true;
-            s.parentNode.insertBefore(g, s);
-
-            g.onload = function () {
-                if (window.vapiEventListenersAdded) {
-                    return;
+            var data = event.data;
+            if (typeof data === 'object' && data !== null) {
+                if (data.type === 'start_conversation') {
+                    console.log("Assistant: Starting conversation via vapi.start()");
+                    vapi.start(assistant);
+                } else if (data.type === 'stop_conversation') {
+                    console.log("Assistant: Stopping conversation via vapi.stop()");
+                    vapi.stop();
                 }
-                window.vapiEventListenersAdded = true;
+            }
+        });
 
-                vapiInstance = window.vapiSDK.run({
-                    apiKey: apiKey,
-                    assistant: assistant,
-                    config: buttonConfig
-                });
+        // Listen for messages from the assistant
+        vapi.on("message", (message) => {
+            console.log("Assistant: Received message:", message);
 
-                console.log("Assistant: vapiInstance created:", vapiInstance);
+            // Process the message
+            if (message.type === 'transcript' && message.transcriptType === 'final') {
+                let transcription = message.transcript;
+                let role = message.role; // 'user' or 'assistant'
 
-                // Log available methods
-                console.log("Assistant: vapiInstance methods:", Object.keys(vapiInstance));
+                console.log("Assistant: Sending transcription:", transcription, "Role:", role);
 
-                // Event listener for messages from the assistant
-                vapiInstance.on('message', (message) => {
-                    // ... existing transcription handling ...
-                });
-
-                // Event listener for errors from the assistant
-                vapiInstance.on('error', (e) => {
-                    // ... existing error handling ...
-                });
-
-                // Event listener for messages from the parent window
-                window.addEventListener('message', function(event) {
-                    if (event.origin !== parentOrigin) {
-                        console.warn("Received message from unknown origin:", event.origin);
-                        return;
+                // Send the transcription and role to the parent window
+                window.parent.postMessage({
+                    type: 'transcription',
+                    data: {
+                        transcription: transcription,
+                        role: role
                     }
+                }, parentOrigin);
+            }
+        });
 
-                    var data = event.data;
-                    if (typeof data === 'object' && data !== null) {
-                        if (data.type === 'start_conversation') {
-                            console.log("Assistant: Starting conversation");
-                            clickAssistantButton('start');
-                        } else if (data.type === 'stop_conversation') {
-                            console.log("Assistant: Stopping conversation");
-                            clickAssistantButton('stop');
-                        }
-                    }
-                });
-            };
-        })(document, "script");
+        // Handle errors from the assistant
+        vapi.on("error", (e) => {
+            console.error("Assistant: Error:", e);
+            window.parent.postMessage({
+                type: 'error',
+                data: e.message || e
+            }, parentOrigin);
+        });
+
+        // Additional event listeners (optional)
+        vapi.on("call-start", () => {
+            console.log("Assistant: Call has started.");
+        });
+
+        vapi.on("call-end", () => {
+            console.log("Assistant: Call has ended.");
+        });
+
     </script>
 </body>
 </html>
