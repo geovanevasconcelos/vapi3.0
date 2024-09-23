@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <title>Vapi AI Assistant</title>
     <!-- Include the Vapi SDK -->
-    <script src="https://cdn.vapi.ai/web/vapi.min.js"></script>
+    <script src="https://cdn.vapiai.com/web/vapi.min.js"></script>
 </head>
 <body>
     <script>
+        // Your assistant code here
+        // Ensure that you wait for the SDK to load before using `vapi`
+
         function getQueryParam(param) {
             let urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
@@ -21,6 +24,12 @@
         // Set the apiKey for the Vapi SDK
         vapi.apiKey = apiKey;
 
+        // Function to start the assistant
+        function startAssistant() {
+            console.log("Assistant: Starting conversation via vapi.start()");
+            vapi.start(assistant);
+        }
+
         // Event listener for messages from the parent window
         window.addEventListener('message', function(event) {
             if (event.origin !== parentOrigin) {
@@ -31,8 +40,7 @@
             var data = event.data;
             if (typeof data === 'object' && data !== null) {
                 if (data.type === 'start_conversation') {
-                    console.log("Assistant: Starting conversation via vapi.start()");
-                    vapi.start(assistant);
+                    startAssistant();
                 } else if (data.type === 'stop_conversation') {
                     console.log("Assistant: Stopping conversation via vapi.stop()");
                     vapi.stop();
@@ -71,7 +79,7 @@
             }, parentOrigin);
         });
 
-        // Additional event listeners (optional)
+        // Optional: Listen for call start and end events
         vapi.on("call-start", () => {
             console.log("Assistant: Call has started.");
         });
@@ -79,7 +87,6 @@
         vapi.on("call-end", () => {
             console.log("Assistant: Call has ended.");
         });
-
     </script>
 </body>
 </html>
