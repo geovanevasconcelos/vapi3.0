@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Vapi AI Assistant</title>
+</head>
+<body>
+    <script>
+        var vapiInstance = null;
+
+        function getQueryParam(param) {
+            let urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const apiKey = getQueryParam('apiKey') || 'defaultApi';
+        const assistant = getQueryParam('assistant') || 'defaultAssistant';
+        const title = getQueryParam('title') || 'Have a quick question?';
+        const subtitle = getQueryParam('subtitle') || 'Talk with our AI assistant';
+
+        const buttonConfig = {
+            position: "bottom-right",
+            offset: "40px",
+            width: "50px",
+            height: "50px",
+            idle: {
+                color: `rgb(93, 254, 202)`,
+                type: "pill",
+                title: title,
+                subtitle: subtitle,
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone.svg`,
+            },
+            loading: {
+                color: `rgb(93, 124, 202)`,
+                type: "pill",
+                title: "Connecting...",
+                subtitle: "Please wait",
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/loader-2.svg`,
+            },
+            active: {
+                color: `rgb(255, 0, 0)`,
+                type: "pill",
+                title: "Call is in progress...",
+                subtitle: "End the call.",
+                icon: `https://unpkg.com/lucide-static@0.321.0/icons/phone-off.svg`,
+            },
+        };
+
+        (function (d, t) {
+            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+            g.src = "https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js";
+            g.defer = true;
+            g.async = true;
+            s.parentNode.insertBefore(g, s);
+
+            g.onload = function () {
+                if (window.vapiEventListenersAdded) {
+                    return;
+                }
+                window.vapiEventListenersAdded = true;
+
+                vapiInstance = window.vapiSDK.run({
+                    apiKey: apiKey,
+                    assistant: assistant,
+                    config: buttonConfig
+                });
+
+                console.log("Assistant: vapiInstance created:", vapiInstance);
+
+                // Event listener for messages from the assistant
+                vapiInstance.on('message', (message) => {
+                    // ... existing transcription code ...
+                });
+
+                // Event listener for errors from the assistant
+                vapiInstance.on('error', (e) => {
+                    // ... existing error handling code ...
+                });
+
+                // Event listener for messages from the parent window
+                window.addEventListener('message', function(event) {
+                    // For security, check the origin
+                    if (event.origin !== 'https://your-bubble-app.com') {
+                        console.warn("Received message from unknown origin:", event.origin);
+                        return;
+                    }
+
+                    var data = event.data;
+                    if (typeof data === 'object' && data !== null) {
+                        if (data.type === 'start_conversation') {
+                            console.log("Assistant: Starting conversation");
+                            // Simulate a click on the assistant button
+                            var assistantButton = document.querySelector('.vapi-widget-button');
+                            if (assistantButton) {
+                                assistantButton.click();
+                            } else {
+                                console.error("Assistant button not found");
+                            }
+                        } else if (data.type === 'stop_conversation') {
+                            console.log("Assistant: Stopping conversation");
+                            // Simulate a click on the assistant button to stop the call
+                            var assistantButton = document.querySelector('.vapi-widget-button');
+                            if (assistantButton) {
+                                assistantButton.click();
+                            } else {
+                                console.error("Assistant button not found");
+                            }
+                        }
+                    }
+                });
+            };
+        })(document, "script");
+    </script>
+</body>
+</html>
