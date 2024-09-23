@@ -17,6 +17,7 @@
         const assistant = getQueryParam('assistant') || 'defaultAssistant';
         const title = getQueryParam('title') || 'Have a quick question?';
         const subtitle = getQueryParam('subtitle') || 'Talk with our AI assistant';
+        const parentOrigin = getQueryParam('parentOrigin') || '*'; // Default to '*' if not provided
 
         const buttonConfig = {
             position: "bottom-right",
@@ -69,18 +70,40 @@
 
                 // Event listener for messages from the assistant
                 vapiInstance.on('message', (message) => {
-                    // ... existing transcription code ...
+                    console.log("Assistant: Received message:", message);
+
+                    // Check if the message is a transcript
+                    if (message.type === 'transcript' && message.transcriptType === 'final') {
+                        // Extract the transcript and role
+                        let transcription = message.transcript;
+                        let role = message.role; // 'user' or 'assistant'
+
+                        console.log("Assistant: Sending transcription:", transcription, "Role:", role);
+
+                        // Send the transcription and role to the parent window
+                        window.parent.postMessage({
+                            type: 'transcription',
+                            data: {
+                                transcription: transcription,
+                                role: role
+                            }
+                        }, parentOrigin); // Use parentOrigin instead of '*'
+                    }
                 });
 
                 // Event listener for errors from the assistant
                 vapiInstance.on('error', (e) => {
-                    // ... existing error handling code ...
+                    console.error("Assistant: Error:", e.message);
+                    window.parent.postMessage({
+                        type: 'error',
+                        data: e.message
+                    }, parentOrigin); // Use parentOrigin instead of '*'
                 });
 
                 // Event listener for messages from the parent window
                 window.addEventListener('message', function(event) {
-                    // For security, check the origin
-                    if (event.origin !== 'https://your-bubble-app.com') {
+                    // Check the origin
+                    if (event.origin !== parentOrigin) {
                         console.warn("Received message from unknown origin:", event.origin);
                         return;
                     }
